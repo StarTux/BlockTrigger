@@ -91,6 +91,7 @@ public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
             section.set("commands", new ArrayList<String>());
             section.set("console", new ArrayList<String>());
             saveConfig();
+            return true;
         }
         return false;
     }

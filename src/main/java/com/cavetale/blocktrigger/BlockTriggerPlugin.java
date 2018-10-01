@@ -1,5 +1,8 @@
 package com.cavetale.blocktrigger;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -50,6 +53,7 @@ public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        getServer().getMessenger().registerOutgoingPluginChannel(this, "BungeeCord");
         getServer().getPluginManager().registerEvents(this, this);
         importConfig();
     }
@@ -91,6 +95,7 @@ public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
             section.set("commands", new ArrayList<String>());
             section.set("console", new ArrayList<String>());
             saveConfig();
+            player.sendMessage("Trigger created: " + name + ". See config.yml");
             return true;
         }
         return false;
@@ -156,6 +161,18 @@ public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
         }
         for (String cmd: trigger.section.getStringList("console")) {
             getServer().dispatchCommand(getServer().getConsoleSender(), cmd.replace("%player%", player.getName()).replace("%uuid%", player.getUniqueId().toString()));
+        }
+        String srv = trigger.section.getString("server");
+        if (srv != null) {
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+            DataOutputStream dataOutputStream = new DataOutputStream(byteArrayOutputStream);
+            try {
+                dataOutputStream.writeUTF("Connect");
+                dataOutputStream.writeUTF(srv);
+            } catch (IOException ioe) {
+                ioe.printStackTrace();
+            }
+            player.sendPluginMessage(this, "BungeeCord", byteArrayOutputStream.toByteArray());
         }
     }
 

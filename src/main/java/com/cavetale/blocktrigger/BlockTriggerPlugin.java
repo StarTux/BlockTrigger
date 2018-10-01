@@ -69,15 +69,16 @@ public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
         if (args.length == 2 && args[0].equals("create")) {
             if (!(sender instanceof Player)) return false;
             Player player = (Player)sender;
-            Integer ax = (Integer)getMeta(player, "SelectionAX");
-            Integer ay = (Integer)getMeta(player, "SelectionAY");
-            Integer az = (Integer)getMeta(player, "SelectionAZ");
-            Integer bx = (Integer)getMeta(player, "SelectionBX");
-            Integer by = (Integer)getMeta(player, "SelectionBY");
-            Integer bz = (Integer)getMeta(player, "SelectionBZ");
+            Integer ax = getMetaInt(player, "SelectionAX");
+            Integer ay = getMetaInt(player, "SelectionAY");
+            Integer az = getMetaInt(player, "SelectionAZ");
+            Integer bx = getMetaInt(player, "SelectionBX");
+            Integer by = getMetaInt(player, "SelectionBY");
+            Integer bz = getMetaInt(player, "SelectionBZ");
             if (ax == null || ay == null || az == null
                 || bx == null || by == null || bz == null) {
                 player.sendMessage("No selection");
+                return true;
             }
             String name = args[1];
             reloadConfig();
@@ -159,9 +160,16 @@ public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
 
     // --- Metadata utility
 
-    Object getMeta(Player player, String key) {
+    private Object getMeta(Player player, String key) {
         for (MetadataValue val: player.getMetadata(key)) {
             if (val.getOwningPlugin() == this) return val.value();
+        }
+        return null;
+    }
+
+    private Integer getMetaInt(Player player, String key) {
+        for (MetadataValue val: player.getMetadata(key)) {
+            return val.asInt();
         }
         return null;
     }

@@ -1,6 +1,7 @@
 package com.cavetale.blocktrigger;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import lombok.Value;
 import org.bukkit.block.Block;
@@ -12,12 +13,12 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
-import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.metadata.FixedMetadataValue;
+import org.bukkit.metadata.MetadataValue;
 import org.bukkit.permissions.PermissionDefault;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.java.annotation.command.Command;
 import org.bukkit.plugin.java.annotation.command.Commands;
-import org.bukkit.plugin.java.annotation.permission.ChildPermission;
 import org.bukkit.plugin.java.annotation.permission.Permission;
 import org.bukkit.plugin.java.annotation.permission.Permissions;
 import org.bukkit.plugin.java.annotation.plugin.ApiVersion;
@@ -32,24 +33,19 @@ import org.bukkit.plugin.java.annotation.plugin.author.Author;
 @Author("StarTux")
 @Website("https://cavetale.com")
 @Commands(@Command(name = "blocktrigger",
-                   desc = "/blocktrigger reload",
+                   desc = "Admin interface",
                    aliases = {},
                    permission = "blocktrigger.blocktrigger",
-                   usage = "/blocktrigger reload"))
+                   usage = "/blocktrigger reload"
+                   + "\n/blocktrigger create"))
 @Permissions(@Permission(name = "blocktrigger.blocktrigger",
                          desc = "Use /blocktrigger",
                          defaultValue = PermissionDefault.OP))
 public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
     final List<Trigger> triggers = new ArrayList<>();;
+    private static final String META_LAST = "blocktrigger.last";
 
-    @Value
-    public final static class Trigger {
-        String world;
-        int ax, ay, az;
-        int bx, by, bz;
-        String type;
-        ConfigurationSection section;
-    }
+    // --- Plugin overrides
 
     @Override
     public void onEnable() {
@@ -69,8 +65,36 @@ public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
             sender.sendMessage("reloaded");
             return true;
         }
+        // /create NAME
+        if (args.length == 2 && args[0].equals("create")) {
+            if (!(sender instanceof Player)) return false;
+            Player player = (Player)sender;
+            Integer ax = (Integer)getMeta(player, "SelectionAX");
+            Integer ay = (Integer)getMeta(player, "SelectionAY");
+            Integer az = (Integer)getMeta(player, "SelectionAZ");
+            Integer bx = (Integer)getMeta(player, "SelectionBX");
+            Integer by = (Integer)getMeta(player, "SelectionBY");
+            Integer bz = (Integer)getMeta(player, "SelectionBZ");
+            if (ax == null || ay == null || az == null
+                || bx == null || by == null || bz == null) {
+                player.sendMessage("No selection");
+            }
+            String name = args[1];
+            reloadConfig();
+            ConfigurationSection section = getConfig().getConfigurationSection(name);
+            if (section == null) section = getConfig().createSection(name);
+            section.set("from", Arrays.asList(Math.min(ax, bx), Math.min(ay, by), Math.min(az, bz)));
+            section.set("to", Arrays.asList(Math.max(ax, bx), Math.max(ay, by), Math.max(az, bz)));
+            section.set("type", "move");
+            section.set("world", player.getWorld().getName());
+            section.set("commands", new ArrayList<String>());
+            section.set("console", new ArrayList<String>());
+            saveConfig();
+        }
         return false;
     }
+
+    // --- Config
 
     void importConfig() {
         reloadConfig();
@@ -98,6 +122,17 @@ public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
         }
     }
 
+    // --- Trigger utility
+
+    @Value
+    public static final class Trigger {
+        String world;
+        int ax, ay, az;
+        int bx, by, bz;
+        String type;
+        ConfigurationSection section;
+    }
+
     Trigger of(Block block) {
         int x = block.getX(), y = block.getY(), z = block.getZ();
         for (Trigger trigger: triggers) {
@@ -122,6 +157,17 @@ public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
         }
     }
 
+    // --- Metadata utility
+
+    Object getMeta(Player player, String key) {
+        for (MetadataValue val: player.getMetadata(key)) {
+            if (val.getOwningPlugin() == this) return val.value();
+        }
+        return null;
+    }
+
+    // --- Event Handlers
+
     @EventHandler(ignoreCancelled = false)
     public void onPlayerInteract(PlayerInteractEvent event) {
         if (event.getAction() != Action.LEFT_CLICK_BLOCK
@@ -135,9 +181,15 @@ public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {
-        Trigger trigger = of(event.getPlayer().getLocation().getBlock());
-        if (trigger == null) return;
+        Player player = event.getPlayer();
+        Trigger trigger = of(player.getLocation().getBlock());
+        if (trigger == null) {
+            player.removeMetadata(META_LAST, this);
+            return;
+        }
         if (!trigger.type.equals("move")) return;
-        runTrigger(trigger, event.getPlayer());
+        if (getMeta(player, META_LAST) == trigger) return;
+        player.setMetadata(META_LAST, new FixedMetadataValue(this, trigger));
+        runTrigger(trigger, player);
     }
 }

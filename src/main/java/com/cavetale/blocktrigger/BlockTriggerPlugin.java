@@ -72,7 +72,7 @@ public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
         // /create NAME
         if (args.length == 2 && args[0].equals("create")) {
             if (!(sender instanceof Player)) return false;
-            Player player = (Player)sender;
+            Player player = (Player) sender;
             Integer ax = getMetaInt(player, "SelectionAX");
             Integer ay = getMetaInt(player, "SelectionAY");
             Integer az = getMetaInt(player, "SelectionAZ");
@@ -134,14 +134,20 @@ public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
     @Value
     public static final class Trigger {
         String world;
-        int ax, ay, az;
-        int bx, by, bz;
+        int ax;
+        int ay;
+        int az;
+        int bx;
+        int by;
+        int bz;
         String type;
         ConfigurationSection section;
     }
 
     Trigger of(Block block) {
-        int x = block.getX(), y = block.getY(), z = block.getZ();
+        int x = block.getX();
+        int y = block.getY();
+        int z = block.getZ();
         for (Trigger trigger: triggers) {
             if (!trigger.world.equals(block.getWorld().getName())) continue;
             if (x < trigger.ax) continue;
@@ -160,7 +166,10 @@ public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
             player.performCommand(cmd);
         }
         for (String cmd: trigger.section.getStringList("console")) {
-            getServer().dispatchCommand(getServer().getConsoleSender(), cmd.replace("%player%", player.getName()).replace("%uuid%", player.getUniqueId().toString()));
+            cmd = cmd
+                .replace("%player%", player.getName())
+                .replace("%uuid%", player.getUniqueId().toString());
+            getServer().dispatchCommand(getServer().getConsoleSender(), cmd);
         }
         String srv = trigger.section.getString("server");
         if (srv != null) {

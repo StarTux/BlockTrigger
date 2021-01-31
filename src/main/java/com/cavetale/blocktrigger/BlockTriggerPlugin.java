@@ -1,12 +1,14 @@
 package com.cavetale.blocktrigger;
 
+import com.cavetale.blocktrigger.util.Cuboid;
+import com.cavetale.blocktrigger.util.WorldEdit;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import lombok.Value;
+import org.bukkit.ChatColor;
 import org.bukkit.block.Block;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.ConfigurationSection;
@@ -18,34 +20,10 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.metadata.MetadataValue;
-import org.bukkit.permissions.PermissionDefault;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.plugin.java.annotation.command.Command;
-import org.bukkit.plugin.java.annotation.command.Commands;
-import org.bukkit.plugin.java.annotation.permission.Permission;
-import org.bukkit.plugin.java.annotation.permission.Permissions;
-import org.bukkit.plugin.java.annotation.plugin.ApiVersion;
-import org.bukkit.plugin.java.annotation.plugin.Description;
-import org.bukkit.plugin.java.annotation.plugin.Plugin;
-import org.bukkit.plugin.java.annotation.plugin.Website;
-import org.bukkit.plugin.java.annotation.plugin.author.Author;
 
-@Plugin(name = "BlockTrigger", version = "0.1")
-@Description("Trigger actions based on blocks")
-@ApiVersion(ApiVersion.Target.v1_13)
-@Author("StarTux")
-@Website("https://cavetale.com")
-@Commands(@Command(name = "blocktrigger",
-                   desc = "Admin interface",
-                   aliases = {},
-                   permission = "blocktrigger.blocktrigger",
-                   usage = "/blocktrigger reload"
-                   + "\n/blocktrigger create"))
-@Permissions(@Permission(name = "blocktrigger.blocktrigger",
-                         desc = "Use /blocktrigger",
-                         defaultValue = PermissionDefault.OP))
 public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
-    final List<Trigger> triggers = new ArrayList<>();;
+    final List<Trigger> triggers = new ArrayList<>();
     private static final String META_LAST = "blocktrigger.last";
 
     // --- Plugin overrides
@@ -73,27 +51,22 @@ public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
         if (args.length == 2 && args[0].equals("create")) {
             if (!(sender instanceof Player)) return false;
             Player player = (Player) sender;
-            Integer ax = getMetaInt(player, "SelectionAX");
-            Integer ay = getMetaInt(player, "SelectionAY");
-            Integer az = getMetaInt(player, "SelectionAZ");
-            Integer bx = getMetaInt(player, "SelectionBX");
-            Integer by = getMetaInt(player, "SelectionBY");
-            Integer bz = getMetaInt(player, "SelectionBZ");
-            if (ax == null || ay == null || az == null
-                || bx == null || by == null || bz == null) {
-                player.sendMessage("No selection");
+            Cuboid cuboid = WorldEdit.getSelection(player);
+            if (cuboid == null) {
+                player.sendMessage(ChatColor.RED + "Make a WorldEdit selection first!");
                 return true;
             }
             String name = args[1];
             reloadConfig();
             ConfigurationSection section = getConfig().getConfigurationSection(name);
             if (section == null) section = getConfig().createSection(name);
-            section.set("from", Arrays.asList(Math.min(ax, bx), Math.min(ay, by), Math.min(az, bz)));
-            section.set("to", Arrays.asList(Math.max(ax, bx), Math.max(ay, by), Math.max(az, bz)));
+            section.set("from", cuboid.getMin().toArray());
+            section.set("to", cuboid.getMax().toArray());
             section.set("type", "move");
             section.set("world", player.getWorld().getName());
             section.set("commands", new ArrayList<String>());
             section.set("console", new ArrayList<String>());
+            section.set("permission", "");
             saveConfig();
             player.sendMessage("Trigger created: " + name + ". See config.yml");
             return true;
@@ -117,12 +90,14 @@ public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
                                       a.get(0), a.get(1), a.get(2),
                                       b.get(0), b.get(1), b.get(2),
                                       section.getString("type"),
+                                      section.getString("permission", ""),
                                       section);
             } else {
                 trigger = new Trigger(section.getString("world"),
                                       at.get(0), at.get(1), at.get(2),
                                       at.get(0), at.get(1), at.get(2),
                                       section.getString("type"),
+                                      section.getString("permission", ""),
                                       section);
             }
             triggers.add(trigger);
@@ -133,15 +108,16 @@ public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
 
     @Value
     public static final class Trigger {
-        String world;
-        int ax;
-        int ay;
-        int az;
-        int bx;
-        int by;
-        int bz;
-        String type;
-        ConfigurationSection section;
+        private final String world;
+        private final int ax;
+        private final int ay;
+        private final int az;
+        private final int bx;
+        private final int by;
+        private final int bz;
+        private final String type;
+        private final String permission;
+        private final ConfigurationSection section;
     }
 
     Trigger of(Block block) {
@@ -161,7 +137,10 @@ public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
         return null;
     }
 
-    void runTrigger(Trigger trigger, Player player) {
+    boolean runTrigger(Trigger trigger, Player player) {
+        if (!trigger.permission.isEmpty() && !player.hasPermission(trigger.permission)) {
+            return false;
+        }
         for (String cmd: trigger.section.getStringList("commands")) {
             player.performCommand(cmd);
         }
@@ -183,6 +162,7 @@ public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
             }
             player.sendPluginMessage(this, "BungeeCord", byteArrayOutputStream.toByteArray());
         }
+        return true;
     }
 
     // --- Metadata utility
@@ -210,8 +190,9 @@ public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
         Trigger trigger = of(event.getClickedBlock());
         if (trigger == null) return;
         if (!trigger.type.equals("interact")) return;
-        runTrigger(trigger, event.getPlayer());
-        event.setCancelled(true);
+        if (runTrigger(trigger, event.getPlayer())) {
+            event.setCancelled(true);
+        }
     }
 
     @EventHandler

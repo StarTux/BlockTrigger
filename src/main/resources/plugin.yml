@@ -1,0 +1,21 @@
+main: com.cavetale.blocktrigger.BlockTriggerPlugin
+name: BlockTrigger
+version: '0.1'
+api-version: '1.13'
+
+description: Trigger actions based on blocks
+author: StarTux
+website: https://cavetale.com
+
+commands:
+
+  blocktrigger:
+    description: Admin interface
+    permission: blocktrigger.blocktrigger
+    usage: |-
+      /blocktrigger reload
+      /blocktrigger create
+
+permissions:
+  blocktrigger.blocktrigger:
+    description: Use /blocktrigger

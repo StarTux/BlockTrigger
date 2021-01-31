@@ -146,8 +146,8 @@ public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
         }
         for (String cmd: trigger.section.getStringList("console")) {
             cmd = cmd
-                .replace("%player%", player.getName())
-                .replace("%uuid%", player.getUniqueId().toString());
+                .replace("{player}", player.getName())
+                .replace("{uuid}", player.getUniqueId().toString());
             getServer().dispatchCommand(getServer().getConsoleSender(), cmd);
         }
         String srv = trigger.section.getString("server");

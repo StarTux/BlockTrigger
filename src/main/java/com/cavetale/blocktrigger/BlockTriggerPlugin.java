@@ -6,18 +6,23 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import lombok.Value;
 import org.bukkit.ChatColor;
 import org.bukkit.block.Block;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.metadata.MetadataValue;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -67,6 +72,7 @@ public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
             section.set("commands", new ArrayList<String>());
             section.set("console", new ArrayList<String>());
             section.set("permission", "");
+            section.set("cooldown", 0);
             saveConfig();
             player.sendMessage("Trigger created: " + name + ". See config.yml");
             return true;
@@ -91,6 +97,7 @@ public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
                                       b.get(0), b.get(1), b.get(2),
                                       section.getString("type"),
                                       section.getString("permission", ""),
+                                      section.getInt("cooldown", 0),
                                       section);
             } else {
                 trigger = new Trigger(section.getString("world"),
@@ -98,6 +105,7 @@ public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
                                       at.get(0), at.get(1), at.get(2),
                                       section.getString("type"),
                                       section.getString("permission", ""),
+                                      section.getInt("cooldown", 0),
                                       section);
             }
             triggers.add(trigger);
@@ -117,7 +125,9 @@ public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
         private final int bz;
         private final String type;
         private final String permission;
+        private final int cooldown;
         private final ConfigurationSection section;
+        private final Map<UUID, Long> cooldowns = new HashMap<>();
     }
 
     Trigger of(Block block) {
@@ -140,6 +150,12 @@ public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
     boolean runTrigger(Trigger trigger, Player player) {
         if (!trigger.permission.isEmpty() && !player.hasPermission(trigger.permission)) {
             return false;
+        }
+        if (trigger.cooldown > 0) {
+            long now = System.currentTimeMillis();
+            long playerCooldown = trigger.cooldowns.getOrDefault(player.getUniqueId(), 0L);
+            if (playerCooldown > now) return false;
+            trigger.cooldowns.put(player.getUniqueId(), now + (((long) trigger.cooldown) * 1000L));
         }
         for (String cmd: trigger.section.getStringList("commands")) {
             player.performCommand(cmd);
@@ -190,9 +206,9 @@ public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
         Trigger trigger = of(event.getClickedBlock());
         if (trigger == null) return;
         if (!trigger.type.equals("interact")) return;
-        if (runTrigger(trigger, event.getPlayer())) {
-            event.setCancelled(true);
-        }
+        event.setUseInteractedBlock(Event.Result.DENY);
+        if (event.getHand() != EquipmentSlot.HAND) return;
+        runTrigger(trigger, event.getPlayer());
     }
 
     @EventHandler

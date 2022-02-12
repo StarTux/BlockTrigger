@@ -22,6 +22,8 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.metadata.MetadataValue;
@@ -223,5 +225,14 @@ public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
         if (getMeta(player, META_LAST) == trigger) return;
         player.setMetadata(META_LAST, new FixedMetadataValue(this, trigger));
         runTrigger(trigger, player);
+    }
+
+    @EventHandler
+    protected void onPlayerQuit(PlayerQuitEvent event) {
+        Player player = event.getPlayer();
+        Trigger trigger = of(player.getLocation().getBlock());
+        if (trigger == null) return;
+        if (!trigger.type.equals("move")) return;
+        player.teleport(player.getWorld().getSpawnLocation(), TeleportCause.PLUGIN);
     }
 }

@@ -117,7 +117,7 @@ public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
         }
         if (args.length == 2) {
             return getConfig().getKeys(false).stream()
-                .filter(it -> it.startsWith(args[0]))
+                .filter(it -> it.startsWith(args[1]))
                 .collect(Collectors.toList());
         }
         return List.of();

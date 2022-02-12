@@ -10,6 +10,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.Value;
 import org.bukkit.ChatColor;
 import org.bukkit.block.Block;
@@ -79,7 +81,46 @@ public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
             player.sendMessage("Trigger created: " + name + ". See config.yml");
             return true;
         }
+        if (args.length == 2 && args[0].equals("update")) {
+            if (!(sender instanceof Player)) return false;
+            Player player = (Player) sender;
+            Cuboid cuboid = WorldEdit.getSelection(player);
+            if (cuboid == null) {
+                player.sendMessage(ChatColor.RED + "Make a WorldEdit selection first!");
+                return true;
+            }
+            String name = args[1];
+            reloadConfig();
+            ConfigurationSection section = getConfig().getConfigurationSection(name);
+            if (section == null) {
+                player.sendMessage(ChatColor.RED + "Not found: " + name);
+                return true;
+            }
+            section.set("from", cuboid.getMin().toArray());
+            section.set("to", cuboid.getMax().toArray());
+            section.set("world", player.getWorld().getName());
+            saveConfig();
+            importConfig();
+            player.sendMessage("Trigger upated: " + name);
+            return true;
+        }
         return false;
+    }
+
+    @Override
+    public List<String> onTabComplete(CommandSender sender, org.bukkit.command.Command command, String alias, String[] args) {
+        if (args.length == 0) return null;
+        if (args.length == 1) {
+            return Stream.of("reload", "create", "update")
+                .filter(it -> it.startsWith(args[0]))
+                .collect(Collectors.toList());
+        }
+        if (args.length == 2) {
+            return getConfig().getKeys(false).stream()
+                .filter(it -> it.startsWith(args[0]))
+                .collect(Collectors.toList());
+        }
+        return List.of();
     }
 
     // --- Config

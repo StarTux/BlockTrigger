@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.Value;
 import org.bukkit.ChatColor;
+import org.bukkit.GameMode;
 import org.bukkit.block.Block;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.ConfigurationSection;
@@ -257,6 +258,7 @@ public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {
         Player player = event.getPlayer();
+        if (player.getGameMode() == GameMode.SPECTATOR) return;
         Trigger trigger = of(player.getLocation().getBlock());
         if (trigger == null) {
             player.removeMetadata(META_LAST, this);

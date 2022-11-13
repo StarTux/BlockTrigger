@@ -1,7 +1,7 @@
 package com.cavetale.blocktrigger;
 
-import com.cavetale.blocktrigger.util.Cuboid;
-import com.cavetale.blocktrigger.util.WorldEdit;
+import com.cavetale.core.struct.Cuboid;
+import com.cavetale.core.struct.Vec3i;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -50,6 +50,10 @@ public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
     public void onDisable() {
     }
 
+    private static List<Integer> toList(Vec3i vec) {
+        return List.of(vec.x, vec.y, vec.z);
+    }
+
     @Override
     public boolean onCommand(CommandSender sender, org.bukkit.command.Command command, String alias, String[] args) {
         if (args.length == 1 && args[0].equals("reload")) {
@@ -61,17 +65,17 @@ public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
         if (args.length == 2 && args[0].equals("create")) {
             if (!(sender instanceof Player)) return false;
             Player player = (Player) sender;
-            Cuboid cuboid = WorldEdit.getSelection(player);
+            Cuboid cuboid = Cuboid.selectionOf(player);
             if (cuboid == null) {
-                player.sendMessage(ChatColor.RED + "Make a WorldEdit selection first!");
+                player.sendMessage(ChatColor.RED + "Make a selection first!");
                 return true;
             }
             String name = args[1];
             reloadConfig();
             ConfigurationSection section = getConfig().getConfigurationSection(name);
             if (section == null) section = getConfig().createSection(name);
-            section.set("from", cuboid.getMin().toArray());
-            section.set("to", cuboid.getMax().toArray());
+            section.set("from", toList(cuboid.getMin()));
+            section.set("to", toList(cuboid.getMax()));
             section.set("type", "move");
             section.set("world", player.getWorld().getName());
             section.set("commands", new ArrayList<String>());
@@ -85,9 +89,9 @@ public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
         if (args.length == 2 && args[0].equals("update")) {
             if (!(sender instanceof Player)) return false;
             Player player = (Player) sender;
-            Cuboid cuboid = WorldEdit.getSelection(player);
+            Cuboid cuboid = Cuboid.selectionOf(player);
             if (cuboid == null) {
-                player.sendMessage(ChatColor.RED + "Make a WorldEdit selection first!");
+                player.sendMessage(ChatColor.RED + "Make a selection first!");
                 return true;
             }
             String name = args[1];
@@ -97,8 +101,15 @@ public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
                 player.sendMessage(ChatColor.RED + "Not found: " + name);
                 return true;
             }
-            section.set("from", cuboid.getMin().toArray());
-            section.set("to", cuboid.getMax().toArray());
+            if (cuboid.getVolume() == 1) {
+                section.set("from", null);
+                section.set("to", null);
+                section.set("at", toList(cuboid.getMin()));
+            } else {
+                section.set("from", toList(cuboid.getMin()));
+                section.set("to", toList(cuboid.getMax()));
+                section.set("at", null);
+            }
             section.set("world", player.getWorld().getName());
             saveConfig();
             importConfig();

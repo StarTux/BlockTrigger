@@ -76,7 +76,7 @@ public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
             if (section == null) section = getConfig().createSection(name);
             section.set("from", toList(cuboid.getMin()));
             section.set("to", toList(cuboid.getMax()));
-            section.set("type", "move");
+            section.set("type", cuboid.getVolume() == 1 ? "interact" : "move");
             section.set("world", player.getWorld().getName());
             section.set("commands", new ArrayList<String>());
             section.set("console", new ArrayList<String>());

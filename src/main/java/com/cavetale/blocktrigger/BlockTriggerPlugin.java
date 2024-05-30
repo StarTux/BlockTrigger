@@ -13,7 +13,6 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.Value;
-import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
 import org.bukkit.block.Block;
 import org.bukkit.command.CommandSender;
@@ -31,6 +30,8 @@ import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.metadata.MetadataValue;
 import org.bukkit.plugin.java.JavaPlugin;
+import static net.kyori.adventure.text.Component.text;
+import static net.kyori.adventure.text.format.NamedTextColor.RED;
 
 public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
     final List<Trigger> triggers = new ArrayList<>();
@@ -67,7 +68,7 @@ public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
             Player player = (Player) sender;
             Cuboid cuboid = Cuboid.selectionOf(player);
             if (cuboid == null) {
-                player.sendMessage(ChatColor.RED + "Make a selection first!");
+                player.sendMessage(text("Make a selection first!", RED));
                 return true;
             }
             String name = args[1];
@@ -91,14 +92,14 @@ public final class BlockTriggerPlugin extends JavaPlugin implements Listener {
             Player player = (Player) sender;
             Cuboid cuboid = Cuboid.selectionOf(player);
             if (cuboid == null) {
-                player.sendMessage(ChatColor.RED + "Make a selection first!");
+                player.sendMessage(text("Make a selection first!", RED));
                 return true;
             }
             String name = args[1];
             reloadConfig();
             ConfigurationSection section = getConfig().getConfigurationSection(name);
             if (section == null) {
-                player.sendMessage(ChatColor.RED + "Not found: " + name);
+                player.sendMessage(text("Not found: " + name, RED));
                 return true;
             }
             if (cuboid.getVolume() == 1) {

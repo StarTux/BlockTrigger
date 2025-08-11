@@ -2,7 +2,7 @@ main: com.cavetale.blocktrigger.BlockTriggerPlugin
 name: BlockTrigger
 
 version: 0.1
-api-version: '1.21'
+api-version: '1.21.8'
 
 description: Trigger actions based on blocks
 author: StarTux
